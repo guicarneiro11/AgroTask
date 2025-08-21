@@ -61,6 +61,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -153,6 +154,16 @@ fun ActivityScreen(
     var showHistorySheet by remember { mutableStateOf(false) }
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
+
+    DisposableEffect(Unit) {
+        viewModel.clearSyncEvent()
+        onDispose {
+            viewModel.resetForm()
+            showHistorySheet = false
+            showStartTimePicker = false
+            showEndTimePicker = false
+        }
+    }
 
     Box(
         modifier = Modifier
@@ -299,8 +310,8 @@ fun ActivityScreen(
         )
 
         if (showStartTimePicker) {
-            ImprovedTimePickerDialog(
-                initialTime = currentActivity.startTime ?: kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+            TimePickerDialog(
+                initialTime = currentActivity.startTime,
                 onTimeSelected = { time ->
                     viewModel.updateStartTime(time)
                     showStartTimePicker = false
@@ -311,8 +322,8 @@ fun ActivityScreen(
         }
 
         if (showEndTimePicker) {
-            ImprovedTimePickerDialog(
-                initialTime = currentActivity.endTime ?: kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+            TimePickerDialog(
+                initialTime = currentActivity.endTime,
                 onTimeSelected = { time ->
                     viewModel.updateEndTime(time)
                     showEndTimePicker = false
@@ -337,15 +348,17 @@ fun ActivityScreen(
     }
 }
 
+@OptIn(ExperimentalTime::class)
 @Composable
-fun ImprovedTimePickerDialog(
-    initialTime: LocalDateTime,
+fun TimePickerDialog(
+    initialTime: LocalDateTime?,
     onTimeSelected: (LocalDateTime) -> Unit,
     onDismiss: () -> Unit,
     title: String
 ) {
-    var selectedHour by remember { mutableStateOf(initialTime.hour) }
-    var selectedMinute by remember { mutableStateOf(initialTime.minute) }
+    val now = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+    var selectedHour by remember { mutableStateOf(initialTime?.hour ?: 0) }
+    var selectedMinute by remember { mutableStateOf(initialTime?.minute ?: 0) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
@@ -486,9 +499,9 @@ fun ImprovedTimePickerDialog(
                     Button(
                         onClick = {
                             val newTime = LocalDateTime(
-                                initialTime.year,
-                                initialTime.month.number,
-                                initialTime.day,
+                                now.year,
+                                now.month.number,
+                                now.day,
                                 selectedHour,
                                 selectedMinute
                             )
