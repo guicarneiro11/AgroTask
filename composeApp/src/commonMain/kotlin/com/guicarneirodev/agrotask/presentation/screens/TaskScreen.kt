@@ -54,6 +54,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -151,6 +152,14 @@ fun TaskScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var taskToDelete by remember { mutableStateOf<Task?>(null) }
 
+    DisposableEffect(Unit) {
+        viewModel.clearSyncEvent()
+        onDispose {
+            showAddDialog = false
+            taskToDelete = null
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -195,7 +204,6 @@ fun TaskScreen(
             }
         }
 
-        /* Menu FAB expansível com opções de sync e adicionar */
         ExtendedFABMenu(
             syncState = syncState,
             onAddClick = { showAddDialog = true },
