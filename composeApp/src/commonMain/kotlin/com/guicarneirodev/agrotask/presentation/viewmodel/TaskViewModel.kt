@@ -36,7 +36,6 @@ class TaskViewModel(
     init {
         loadTodayTasks()
         observeSyncEvents()
-        syncManager.performFullSync()
     }
 
     private fun observeSyncEvents() {
@@ -45,6 +44,10 @@ class TaskViewModel(
                 _lastSyncEvent.value = event
             }
         }
+    }
+
+    fun clearSyncEvent() {
+        _lastSyncEvent.value = null
     }
 
     private fun loadTodayTasks() {
