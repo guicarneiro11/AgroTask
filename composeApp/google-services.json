@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "147674421588",
+    "project_id": "agrotask-52f04",
+    "storage_bucket": "agrotask-52f04.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:147674421588:android:01898e99828a10e0cc10c1",
+        "android_client_info": {
+          "package_name": "com.guicarneirodev.agrotask"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCm23ZsJjJGrCi274nSVHtcwOwyhZIupXA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
