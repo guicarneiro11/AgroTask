@@ -3,6 +3,9 @@ package com.guicarneirodev.agrotask.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.guicarneirodev.agrotask.core.util.IdGenerator
+import com.guicarneirodev.agrotask.domain.sync.SyncEvent
+import com.guicarneirodev.agrotask.domain.sync.SyncManager
+import com.guicarneirodev.agrotask.domain.sync.SyncState
 import com.guicarneirodev.agrotask.domain.model.ActivityRecord
 import com.guicarneirodev.agrotask.domain.repository.ActivityRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,7 +18,8 @@ import kotlinx.datetime.toLocalDateTime
 import kotlin.time.ExperimentalTime
 
 class ActivityViewModel(
-    private val activityRepository: ActivityRepository
+    private val activityRepository: ActivityRepository,
+    private val syncManager: SyncManager
 ) : ViewModel() {
 
     private val _activityRecords = MutableStateFlow<List<ActivityRecord>>(emptyList())
@@ -27,8 +31,22 @@ class ActivityViewModel(
     private val _currentActivity = MutableStateFlow<ActivityFormState>(ActivityFormState())
     val currentActivity: StateFlow<ActivityFormState> = _currentActivity.asStateFlow()
 
+    val syncState: StateFlow<SyncState> = syncManager.syncState
+
+    private val _lastSyncEvent = MutableStateFlow<SyncEvent?>(null)
+    val lastSyncEvent: StateFlow<SyncEvent?> = _lastSyncEvent.asStateFlow()
+
     init {
         loadActivityRecords()
+        observeSyncEvents()
+    }
+
+    private fun observeSyncEvents() {
+        viewModelScope.launch {
+            syncManager.syncEvents.collect { event ->
+                _lastSyncEvent.value = event
+            }
+        }
     }
 
     private fun loadActivityRecords() {
@@ -78,6 +96,10 @@ class ActivityViewModel(
                     )
                     activityRepository.insertActivityRecord(record)
                     resetForm()
+
+                    if (syncState.value.isOnline) {
+                        syncManager.performFullSync()
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
@@ -88,17 +110,20 @@ class ActivityViewModel(
     }
 
     fun syncActivityRecords() {
-        viewModelScope.launch {
-            try {
-                activityRepository.syncWithFirebase()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
+        syncManager.performFullSync()
+    }
+
+    fun retrySync() {
+        syncManager.retrySync()
     }
 
     private fun resetForm() {
         _currentActivity.value = ActivityFormState()
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        syncManager.onCleared()
     }
 }
 

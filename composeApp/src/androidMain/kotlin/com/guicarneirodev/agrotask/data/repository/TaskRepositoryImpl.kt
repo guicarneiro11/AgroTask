@@ -14,12 +14,10 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import kotlinx.datetime.TimeZone
-import kotlinx.datetime.toInstant
-import kotlinx.datetime.toLocalDateTime
+import kotlinx.datetime.*
 import kotlin.time.ExperimentalTime
 
-@OptIn(DelicateCoroutinesApi::class)
+@OptIn(DelicateCoroutinesApi::class, ExperimentalTime::class)
 class TaskRepositoryImpl(
     private val taskDao: TaskDao,
     private val firebaseService: FirebaseService
@@ -51,7 +49,15 @@ class TaskRepositoryImpl(
     }
 
     override fun getTodayTasks(): Flow<List<Task>> {
-        return taskDao.getTodayTasks().map { entities ->
+        val timeZone = TimeZone.currentSystemDefault()
+        val now = kotlin.time.Clock.System.now()
+        val todayStart = now.toLocalDateTime(timeZone).date.atStartOfDayIn(timeZone)
+        val tomorrowStart = todayStart.plus(1, DateTimeUnit.DAY, timeZone)
+
+        return taskDao.getTasksByDateRange(
+            startOfDay = todayStart.toEpochMilliseconds(),
+            endOfDay = tomorrowStart.toEpochMilliseconds()
+        ).map { entities ->
             entities.map { it.toDomain() }
         }
     }
@@ -65,7 +71,6 @@ class TaskRepositoryImpl(
         firebaseService.syncTask(task)
     }
 
-    @OptIn(ExperimentalTime::class)
     override suspend fun updateTaskStatus(taskId: String, status: TaskStatus) {
         val updatedAt = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
         taskDao.updateTaskStatus(
@@ -84,14 +89,23 @@ class TaskRepositoryImpl(
         firebaseService.deleteTask(task.id)
     }
 
+    override suspend fun deleteTaskById(taskId: String) {
+        getTaskById(taskId)?.let { task ->
+            deleteTask(task)
+        }
+    }
+
     override suspend fun syncWithFirebase() {
         try {
-            val remoteTasks = firebaseService.getAllTasks()
-            taskDao.insertTasks(remoteTasks.map { it.toEntity() })
-
-            remoteTasks.forEach { task ->
+            val unsyncedTasks = taskDao.getUnsyncedTasks()
+            unsyncedTasks.forEach { entity ->
+                val task = entity.toDomain()
+                firebaseService.syncTask(task)
                 taskDao.markAsSynced(task.id)
             }
+
+            val remoteTasks = firebaseService.getAllTasks()
+            taskDao.insertTasks(remoteTasks.map { it.toEntity() })
         } catch (e: Exception) {
             e.printStackTrace()
         }

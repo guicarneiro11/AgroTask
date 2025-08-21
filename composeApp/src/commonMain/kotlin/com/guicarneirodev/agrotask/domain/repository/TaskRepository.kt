@@ -11,5 +11,6 @@ interface TaskRepository {
     suspend fun insertTask(task: Task)
     suspend fun updateTaskStatus(taskId: String, status: TaskStatus)
     suspend fun deleteTask(task: Task)
+    suspend fun deleteTaskById(taskId: String)
     suspend fun syncWithFirebase()
 }

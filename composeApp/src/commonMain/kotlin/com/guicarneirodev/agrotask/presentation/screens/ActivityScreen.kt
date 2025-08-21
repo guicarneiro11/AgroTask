@@ -1,11 +1,27 @@
 package com.guicarneirodev.agrotask.presentation.screens
 
-import androidx.compose.animation.*
-import androidx.compose.animation.core.*
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -14,26 +30,115 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Note
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.AccessTime
+import androidx.compose.material.icons.filled.Agriculture
+import androidx.compose.material.icons.filled.Build
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.CloudUpload
+import androidx.compose.material.icons.filled.Grass
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Landscape
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Vaccines
+import androidx.compose.material.icons.filled.Water
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.guicarneirodev.agrotask.domain.model.ActivityRecord
-import com.guicarneirodev.agrotask.presentation.theme.*
+import com.guicarneirodev.agrotask.presentation.components.ConnectionStatusChip
+import com.guicarneirodev.agrotask.presentation.components.FloatingSyncButton
+import com.guicarneirodev.agrotask.presentation.components.SyncStatusBanner
+import com.guicarneirodev.agrotask.presentation.theme.Amber60
+import com.guicarneirodev.agrotask.presentation.theme.Green50
+import com.guicarneirodev.agrotask.presentation.theme.Green60
+import com.guicarneirodev.agrotask.presentation.theme.Grey20
+import com.guicarneirodev.agrotask.presentation.theme.Grey30
+import com.guicarneirodev.agrotask.presentation.theme.Grey40
+import com.guicarneirodev.agrotask.presentation.theme.Grey80
 import com.guicarneirodev.agrotask.presentation.viewmodel.ActivityViewModel
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
 import kotlin.time.ExperimentalTime
+
+@Composable
+fun LongPressButtonActivity(
+    onClick: () -> Unit,
+    onLongPress: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    var job by remember { mutableStateOf<Job?>(null) }
+    val coroutineScope = rememberCoroutineScope()
+
+    Box(
+        modifier = modifier
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        isPressed = true
+                        job = coroutineScope.launch {
+                            delay(2000)
+                            if (isPressed) {
+                                while (isPressed) {
+                                    onLongPress()
+                                    delay(150)
+                                }
+                            }
+                        }
+                        tryAwaitRelease()
+                        job?.cancel()
+                        isPressed = false
+                    },
+                    onTap = {
+                        onClick()
+                    }
+                )
+            }
+            .scale(if (isPressed) 0.9f else 1f)
+    ) {
+        content()
+    }
+}
 
 @OptIn(ExperimentalTime::class, ExperimentalMaterial3Api::class)
 @Composable
@@ -43,6 +148,8 @@ fun ActivityScreen(
     val activityRecords by viewModel.activityRecords.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
     val currentActivity by viewModel.currentActivity.collectAsState()
+    val syncState by viewModel.syncState.collectAsState()
+    val syncEvent by viewModel.lastSyncEvent.collectAsState()
     var showHistorySheet by remember { mutableStateOf(false) }
     var showStartTimePicker by remember { mutableStateOf(false) }
     var showEndTimePicker by remember { mutableStateOf(false) }
@@ -57,7 +164,13 @@ fun ActivityScreen(
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
         ) {
-            ActivityHeader()
+            ActivityHeader(syncState = syncState)
+
+            SyncStatusBanner(
+                syncState = syncState,
+                syncEvent = syncEvent,
+                onRetryClick = { viewModel.retrySync() }
+            )
 
             Card(
                 modifier = Modifier
@@ -90,7 +203,7 @@ fun ActivityScreen(
                     OutlinedTextField(
                         value = currentActivity.field,
                         onValueChange = viewModel::updateField,
-                        label = { Text("Talhão/Área") },
+                        label = { Text("Talhão") },
                         placeholder = { Text("Ex: Talhão B2") },
                         leadingIcon = {
                             Icon(Icons.Default.Landscape, contentDescription = null, tint = Green50)
@@ -177,8 +290,16 @@ fun ActivityScreen(
             )
         }
 
+        FloatingSyncButton(
+            syncState = syncState,
+            onClick = { viewModel.syncActivityRecords() },
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(16.dp)
+        )
+
         if (showStartTimePicker) {
-            TimePickerDialog(
+            ImprovedTimePickerDialog(
                 initialTime = currentActivity.startTime ?: kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
                 onTimeSelected = { time ->
                     viewModel.updateStartTime(time)
@@ -190,7 +311,7 @@ fun ActivityScreen(
         }
 
         if (showEndTimePicker) {
-            TimePickerDialog(
+            ImprovedTimePickerDialog(
                 initialTime = currentActivity.endTime ?: kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
                 onTimeSelected = { time ->
                     viewModel.updateEndTime(time)
@@ -217,7 +338,7 @@ fun ActivityScreen(
 }
 
 @Composable
-fun TimePickerDialog(
+fun ImprovedTimePickerDialog(
     initialTime: LocalDateTime,
     onTimeSelected: (LocalDateTime) -> Unit,
     onDismiss: () -> Unit,
@@ -251,15 +372,16 @@ fun TimePickerDialog(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        IconButton(
-                            onClick = {
-                                selectedHour = (selectedHour + 1) % 24
-                            }
+                        LongPressButtonActivity(
+                            onClick = { selectedHour = (selectedHour + 1) % 24 },
+                            onLongPress = { selectedHour = (selectedHour + 1) % 24 },
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Default.KeyboardArrowUp,
                                 contentDescription = null,
-                                tint = Green60
+                                tint = Green60,
+                                modifier = Modifier.size(40.dp)
                             )
                         }
 
@@ -278,15 +400,16 @@ fun TimePickerDialog(
                             )
                         }
 
-                        IconButton(
-                            onClick = {
-                                selectedHour = if (selectedHour == 0) 23 else selectedHour - 1
-                            }
+                        LongPressButtonActivity(
+                            onClick = { selectedHour = if (selectedHour == 0) 23 else selectedHour - 1 },
+                            onLongPress = { selectedHour = if (selectedHour == 0) 23 else selectedHour - 1 },
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
                                 contentDescription = null,
-                                tint = Green60
+                                tint = Green60,
+                                modifier = Modifier.size(40.dp)
                             )
                         }
                     }
@@ -301,15 +424,16 @@ fun TimePickerDialog(
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        IconButton(
-                            onClick = {
-                                selectedMinute = (selectedMinute + 5) % 60
-                            }
+                        LongPressButtonActivity(
+                            onClick = { selectedMinute = (selectedMinute + 1) % 60 },
+                            onLongPress = { selectedMinute = (selectedMinute + 1) % 60 },
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Default.KeyboardArrowUp,
                                 contentDescription = null,
-                                tint = Green60
+                                tint = Green60,
+                                modifier = Modifier.size(40.dp)
                             )
                         }
 
@@ -328,15 +452,16 @@ fun TimePickerDialog(
                             )
                         }
 
-                        IconButton(
-                            onClick = {
-                                selectedMinute = if (selectedMinute < 5) 55 else selectedMinute - 5
-                            }
+                        LongPressButtonActivity(
+                            onClick = { selectedMinute = if (selectedMinute == 0) 59 else selectedMinute - 1 },
+                            onLongPress = { selectedMinute = if (selectedMinute == 0) 59 else selectedMinute - 1 },
+                            modifier = Modifier.size(40.dp)
                         ) {
                             Icon(
                                 Icons.Default.KeyboardArrowDown,
                                 contentDescription = null,
-                                tint = Green60
+                                tint = Green60,
+                                modifier = Modifier.size(40.dp)
                             )
                         }
                     }
@@ -436,7 +561,7 @@ fun TimePickerCard(
 }
 
 @Composable
-fun ActivityHeader() {
+fun ActivityHeader(syncState: com.guicarneirodev.agrotask.domain.sync.SyncState) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         color = Grey20,
@@ -453,17 +578,28 @@ fun ActivityHeader() {
                 .padding(20.dp)
         ) {
             Column {
-                Text(
-                    "Registro de Atividades",
-                    fontSize = 24.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Green60
-                )
-                Text(
-                    "Documente o trabalho realizado no campo",
-                    fontSize = 14.sp,
-                    color = Grey80
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.Top
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            "Registro de Atividades",
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Green60
+                        )
+                        Text(
+                            "Documente o trabalho realizado no campo",
+                            fontSize = 14.sp,
+                            color = Grey80
+                        )
+                    }
+                    ConnectionStatusChip(
+                        isOnline = syncState.isOnline
+                    )
+                }
             }
         }
     }
@@ -590,6 +726,16 @@ fun RecentActivitiesPreview(
 
 @Composable
 fun ActivityRecordCard(activity: ActivityRecord) {
+    val pulseAnimation = rememberInfiniteTransition()
+    val pulseAlpha by pulseAnimation.animateFloat(
+        initialValue = 1f,
+        targetValue = 0.5f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(800),
+            repeatMode = RepeatMode.Reverse
+        )
+    )
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
@@ -603,7 +749,7 @@ fun ActivityRecordCard(activity: ActivityRecord) {
                 .padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     activity.activityType,
                     fontSize = 16.sp,
@@ -615,21 +761,35 @@ fun ActivityRecordCard(activity: ActivityRecord) {
                     fontSize = 12.sp,
                     color = Grey80
                 )
+                if (activity.observations.isNotBlank()) {
+                    Text(
+                        activity.observations,
+                        fontSize = 11.sp,
+                        color = Grey80.copy(alpha = 0.8f),
+                        modifier = Modifier.padding(top = 4.dp),
+                        maxLines = 1
+                    )
+                }
             }
-            if (activity.syncedWithFirebase) {
-                Icon(
-                    Icons.Default.CloudDone,
-                    contentDescription = "Sincronizado",
-                    tint = Green50,
-                    modifier = Modifier.size(20.dp)
-                )
-            } else {
-                Icon(
-                    Icons.Default.CloudOff,
-                    contentDescription = "Não sincronizado",
-                    tint = Amber60,
-                    modifier = Modifier.size(20.dp)
-                )
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.padding(start = 8.dp)
+            ) {
+                if (activity.syncedWithFirebase) {
+                    Icon(
+                        Icons.Default.CloudDone,
+                        contentDescription = "Sincronizado",
+                        tint = Green50,
+                        modifier = Modifier.size(20.dp)
+                    )
+                } else {
+                    Icon(
+                        Icons.Default.CloudUpload,
+                        contentDescription = "Aguardando sincronização",
+                        tint = Amber60.copy(alpha = pulseAlpha),
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
             }
         }
     }

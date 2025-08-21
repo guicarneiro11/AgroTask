@@ -10,8 +10,13 @@ interface TaskDao {
     @Query("SELECT * FROM tasks ORDER BY scheduledTime ASC")
     fun getAllTasks(): Flow<List<TaskEntity>>
 
-    @Query("SELECT * FROM tasks WHERE DATE(scheduledTime/1000, 'unixepoch') = DATE('now')")
-    fun getTodayTasks(): Flow<List<TaskEntity>>
+    @Query("""
+        SELECT * FROM tasks 
+        WHERE scheduledTime >= :startOfDay 
+        AND scheduledTime < :endOfDay 
+        ORDER BY scheduledTime ASC
+    """)
+    fun getTasksByDateRange(startOfDay: Long, endOfDay: Long): Flow<List<TaskEntity>>
 
     @Query("SELECT * FROM tasks WHERE id = :taskId")
     suspend fun getTaskById(taskId: String): TaskEntity?
@@ -28,9 +33,15 @@ interface TaskDao {
     @Delete
     suspend fun deleteTask(task: TaskEntity)
 
+    @Query("DELETE FROM tasks WHERE id = :taskId")
+    suspend fun deleteTaskById(taskId: String)
+
     @Query("UPDATE tasks SET status = :status, updatedAt = :updatedAt WHERE id = :taskId")
     suspend fun updateTaskStatus(taskId: String, status: String, updatedAt: Long)
 
     @Query("UPDATE tasks SET syncedWithFirebase = 1 WHERE id = :taskId")
     suspend fun markAsSynced(taskId: String)
+
+    @Query("SELECT * FROM tasks WHERE syncedWithFirebase = 0")
+    suspend fun getUnsyncedTasks(): List<TaskEntity>
 }
