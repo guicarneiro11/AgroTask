@@ -1,6 +1,7 @@
 package com.guicarneirodev.agrotask.presentation.screens
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloatAsState
@@ -10,7 +11,9 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -26,10 +29,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.LocationOff
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.WifiOff
@@ -46,6 +52,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
@@ -56,6 +65,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.guicarneirodev.agrotask.domain.model.HourlyForecast
 import com.guicarneirodev.agrotask.domain.model.Weather
+import com.guicarneirodev.agrotask.domain.model.getDescription
 import com.guicarneirodev.agrotask.domain.network.NetworkStatus
 import com.guicarneirodev.agrotask.domain.network.isConnected
 import com.guicarneirodev.agrotask.presentation.components.ConnectionStatusChip
@@ -70,7 +80,11 @@ import com.guicarneirodev.agrotask.presentation.theme.Grey40
 import com.guicarneirodev.agrotask.presentation.theme.Grey80
 import com.guicarneirodev.agrotask.presentation.theme.Red40
 import com.guicarneirodev.agrotask.presentation.viewmodel.WeatherViewModel
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.number
+import kotlinx.datetime.toLocalDateTime
 import org.koin.compose.viewmodel.koinViewModel
+import kotlin.time.ExperimentalTime
 
 @Composable
 fun WeatherScreen(
@@ -167,6 +181,8 @@ fun WeatherContent(
     onRefresh: () -> Unit,
     isRefreshing: Boolean
 ) {
+    var selectedForecast by remember { mutableStateOf<HourlyForecast?>(null) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -179,10 +195,28 @@ fun WeatherContent(
             isRefreshing = isRefreshing
         )
 
-        CurrentWeatherCard(weather)
+        Crossfade(
+            targetState = selectedForecast,
+            modifier = Modifier.fillMaxWidth()
+        ) { forecast ->
+            if (forecast == null) {
+                CurrentWeatherCard(weather = weather)
+            } else {
+                SelectedForecastCard(
+                    forecast = forecast,
+                    onDismiss = { selectedForecast = null }
+                )
+            }
+        }
 
         if (weather.hourlyForecast.isNotEmpty()) {
-            HourlyForecastSection(weather.hourlyForecast)
+            HourlyForecastSection(
+                forecasts = weather.hourlyForecast,
+                selectedForecast = selectedForecast,
+                onForecastClick = { forecast ->
+                    selectedForecast = if (selectedForecast == forecast) null else forecast
+                }
+            )
         }
 
         Spacer(modifier = Modifier.height(80.dp))
@@ -266,85 +300,92 @@ fun CurrentWeatherCard(weather: Weather) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(16.dp)
+            .height(320.dp),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(
             containerColor = Grey30
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
     ) {
-        Column(
-            modifier = Modifier.padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
         ) {
-            WeatherIcon(
-                condition = weather.condition,
-                size = 100.dp,
-                tint = Green60
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Row(
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.Center
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(
-                    "${weather.temperature.toInt()}",
-                    fontSize = 64.sp,
-                    fontWeight = FontWeight.Light,
-                    color = Color.White
+                WeatherIcon(
+                    condition = weather.condition,
+                    size = 80.dp
                 )
-                Text(
-                    "°C",
-                    fontSize = 28.sp,
-                    fontWeight = FontWeight.Light,
-                    color = Grey80,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
 
-            Text(
-                weather.description,
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Medium,
-                color = Grey80,
-                textAlign = TextAlign.Center
-            )
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Card(
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = Grey40.copy(alpha = 0.5f)
-                )
-            ) {
                 Row(
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.Center
                 ) {
-                    Icon(
-                        Icons.Default.WaterDrop,
-                        contentDescription = "Umidade",
-                        tint = Blue40,
-                        modifier = Modifier.size(20.dp)
-                    )
                     Text(
-                        "Umidade: ${weather.humidity}%",
-                        fontSize = 14.sp,
+                        "${weather.temperature.toInt()}",
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Light,
                         color = Color.White
                     )
+                    Text(
+                        "°C",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Light,
+                        color = Grey80,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                Text(
+                    weather.description,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Grey80,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Grey40.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.WaterDrop,
+                            contentDescription = "Umidade",
+                            tint = Blue40,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            "Umidade: ${weather.humidity}%",
+                            fontSize = 14.sp,
+                            color = Color.White
+                        )
+                    }
                 }
             }
 
             if (weather.isFromCache) {
-                Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     "Última atualização: ${formatLastUpdate(weather.lastUpdated)}",
-                    fontSize = 12.sp,
-                    color = Grey80.copy(alpha = 0.7f)
+                    fontSize = 11.sp,
+                    color = Grey80.copy(alpha = 0.7f),
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 16.dp)
                 )
             }
         }
@@ -352,59 +393,280 @@ fun CurrentWeatherCard(weather: Weather) {
 }
 
 @Composable
-fun HourlyForecastSection(forecasts: List<HourlyForecast>) {
+fun SelectedForecastCard(
+    forecast: HourlyForecast,
+    onDismiss: () -> Unit
+) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+            .height(320.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = Grey20
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 12.dp),
+        border = BorderStroke(2.dp, Green50)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = Green50.copy(alpha = 0.2f)
+                ) {
+                    Text(
+                        "${forecast.time.hour}:00",
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Green50
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                WeatherIcon(
+                    condition = forecast.condition,
+                    size = 80.dp
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Row(
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Text(
+                        "${forecast.temperature.toInt()}",
+                        fontSize = 56.sp,
+                        fontWeight = FontWeight.Light,
+                        color = Color.White
+                    )
+                    Text(
+                        "°C",
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Light,
+                        color = Grey80,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                Text(
+                    forecast.condition.getDescription(),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = Grey80,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Card(
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = Grey40.copy(alpha = 0.5f)
+                    )
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(
+                            Icons.Default.WaterDrop,
+                            contentDescription = "Umidade",
+                            tint = Blue40,
+                            modifier = Modifier.size(20.dp)
+                        )
+                        Text(
+                            "Umidade: ${forecast.humidity}%",
+                            fontSize = 14.sp,
+                            color = Color.White
+                        )
+                    }
+                }
+            }
+
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp)
+                    .size(32.dp)
+            ) {
+                Surface(
+                    shape = CircleShape,
+                    color = Grey40.copy(alpha = 0.5f),
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            Icons.Default.Close,
+                            contentDescription = "Fechar",
+                            tint = Grey80,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalTime::class)
+@Composable
+fun HourlyForecastSection(
+    forecasts: List<HourlyForecast>,
+    selectedForecast: HourlyForecast?,
+    onForecastClick: (HourlyForecast) -> Unit
+) {
+    val currentTime = kotlin.time.Clock.System.now()
+        .toLocalDateTime(TimeZone.currentSystemDefault())
+    val currentHour = currentTime.hour
+    val currentDay = currentTime.dayOfMonth
+
+    val nextHours = mutableListOf<HourlyForecast>()
+    var foundStart = false
+
+    for (forecast in forecasts.sortedBy { it.time }) {
+        val forecastHour = forecast.time.hour
+        val forecastDay = forecast.time.dayOfMonth
+
+        if (!foundStart) {
+            if (forecastDay == currentDay && forecastHour >= currentHour) {
+                foundStart = true
+                nextHours.add(forecast)
+            } else if (forecastDay > currentDay) {
+                foundStart = true
+                nextHours.add(forecast)
+            }
+        } else {
+            nextHours.add(forecast)
+            if (nextHours.size >= 24) break
+        }
+    }
+
+    if (nextHours.isEmpty() && forecasts.isNotEmpty()) {
+        nextHours.addAll(forecasts.take(24))
+    }
+
     Column(
         modifier = Modifier.padding(vertical = 16.dp)
     ) {
-        Text(
-            "Próximas Horas",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = Green60,
-            modifier = Modifier.padding(horizontal = 16.dp)
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                "Próximas Horas",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Green60
+            )
+
+            if (nextHours.isNotEmpty()) {
+                Text(
+                    "${nextHours.size}h de previsão",
+                    fontSize = 12.sp,
+                    color = Grey80
+                )
+            }
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         LazyRow(
             contentPadding = PaddingValues(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            items(forecasts.take(12)) { forecast ->
-                HourlyForecastCard(forecast)
+            items(nextHours) { forecast ->
+                val isCurrentHour = forecast.time.hour == currentHour &&
+                        forecast.time.dayOfMonth == currentDay
+                val isSelected = selectedForecast == forecast
+
+                HourlyForecastCardClickable(
+                    forecast = forecast,
+                    isCurrentHour = isCurrentHour,
+                    isSelected = isSelected,
+                    onClick = { onForecastClick(forecast) }
+                )
             }
         }
     }
 }
 
+
 @Composable
-fun HourlyForecastCard(forecast: HourlyForecast) {
+fun HourlyForecastCardClickable(
+    forecast: HourlyForecast,
+    isCurrentHour: Boolean = false,
+    isSelected: Boolean = false,
+    onClick: () -> Unit
+) {
+    val hour = forecast.time.hour
+    val isDayTime = hour in 6..17
+
+    val cardBackgroundColor = when {
+        isSelected -> Green50.copy(alpha = 0.3f)
+        isCurrentHour -> Green50.copy(alpha = 0.15f)
+        !isDayTime -> Grey30.copy(alpha = 0.9f)
+        else -> Grey30.copy(alpha = 0.7f)
+    }
+
+    val borderColor = when {
+        isSelected -> Green50
+        isCurrentHour -> Green50.copy(alpha = 0.5f)
+        else -> null
+    }
+
     Card(
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Grey30.copy(alpha = 0.7f)
-        )
+            containerColor = cardBackgroundColor
+        ),
+        border = borderColor?.let { BorderStroke(1.dp, it) },
+        modifier = Modifier
+            .width(60.dp)
+            .clickable { onClick() }
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(8.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
             Text(
-                "${forecast.time.hour}:00",
-                fontSize = 12.sp,
-                color = Grey80
+                when {
+                    isCurrentHour -> "Agora"
+                    else -> "${forecast.time.hour}h"
+                },
+                fontSize = 11.sp,
+                color = when {
+                    isSelected -> Green50
+                    isCurrentHour -> Green50
+                    !isDayTime -> Color(0xFFB3B3CC)
+                    else -> Grey80
+                },
+                fontWeight = if (isCurrentHour || isSelected) FontWeight.Bold else FontWeight.Normal
             )
 
             WeatherIcon(
                 condition = forecast.condition,
-                size = 32.dp,
-                tint = Green60
+                size = 28.dp
             )
 
             Text(
                 "${forecast.temperature.toInt()}°",
-                fontSize = 16.sp,
+                fontSize = 14.sp,
                 fontWeight = FontWeight.SemiBold,
                 color = Color.White
             )
@@ -450,25 +712,46 @@ fun ErrorWeatherState(
             verticalArrangement = Arrangement.spacedBy(16.dp),
             modifier = Modifier.padding(32.dp)
         ) {
+            val isLocationError = error.contains("localização", ignoreCase = true) ||
+                    error.contains("permissão", ignoreCase = true)
+
             Icon(
-                if (isOffline) Icons.Default.WifiOff else Icons.Default.CloudOff,
+                when {
+                    isLocationError -> Icons.Default.LocationOff
+                    isOffline -> Icons.Default.WifiOff
+                    else -> Icons.Default.CloudOff
+                },
                 contentDescription = null,
                 modifier = Modifier.size(64.dp),
-                tint = if (isOffline) Grey40 else Red40
+                tint = when {
+                    isLocationError -> Amber60
+                    isOffline -> Grey40
+                    else -> Red40
+                }
             )
+
             Text(
-                if (isOffline) "Sem conexão" else "Erro ao carregar clima",
+                when {
+                    isLocationError -> "Localização Necessária"
+                    isOffline -> "Sem conexão"
+                    else -> "Erro ao carregar clima"
+                },
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Medium,
                 color = Color.White
             )
+
             Text(
-                error,
+                when {
+                    isLocationError -> "Ative a permissão de localização nas configurações do dispositivo para ver o clima da sua região"
+                    else -> error
+                },
                 fontSize = 14.sp,
                 color = Grey80,
                 textAlign = TextAlign.Center
             )
-            if (!isOffline) {
+
+            if (!isOffline || isLocationError) {
                 Button(
                     onClick = onRetry,
                     colors = ButtonDefaults.buttonColors(
@@ -477,7 +760,7 @@ fun ErrorWeatherState(
                 ) {
                     Icon(Icons.Default.Refresh, contentDescription = null)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Tentar Novamente")
+                    Text(if (isLocationError) "Tentar Novamente" else "Recarregar")
                 }
             }
         }
@@ -485,5 +768,5 @@ fun ErrorWeatherState(
 }
 
 fun formatLastUpdate(dateTime: kotlinx.datetime.LocalDateTime): String {
-    return "${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')} - ${dateTime.dayOfMonth}/${dateTime.monthNumber}"
+    return "${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')} - ${dateTime.day}/${dateTime.month.number}"
 }
