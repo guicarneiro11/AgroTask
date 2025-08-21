@@ -26,7 +26,7 @@ class LocationService(private val context: Context) {
     @SuppressLint("MissingPermission")
     suspend fun getCurrentLocation(): Coordinates? {
         if (!hasLocationPermission()) {
-            return Coordinates(-22.296933, -48.553894)
+            return null
         }
 
         return suspendCancellableCoroutine { continuation ->
@@ -44,10 +44,11 @@ class LocationService(private val context: Context) {
                         )
                     )
                 } else {
-                    continuation.resume(Coordinates(-22.296933, -48.553894))
+                    continuation.resume(null)
                 }
-            } catch (_: Exception) {
-                continuation.resume(Coordinates(-22.296933, -48.553894))
+            } catch (e: Exception) {
+                e.printStackTrace()
+                continuation.resume(null)
             }
         }
     }
