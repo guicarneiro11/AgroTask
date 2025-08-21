@@ -49,6 +49,10 @@ class ActivityViewModel(
         }
     }
 
+    fun clearSyncEvent() {
+        _lastSyncEvent.value = null
+    }
+
     private fun loadActivityRecords() {
         viewModelScope.launch {
             activityRepository.getAllActivityRecords().collect { records ->
@@ -80,23 +84,26 @@ class ActivityViewModel(
     @OptIn(ExperimentalTime::class)
     fun saveActivityRecord() {
         viewModelScope.launch {
+            val state = _currentActivity.value
+            if (!state.isValid()) return@launch
+
             _isLoading.value = true
             try {
-                val state = _currentActivity.value
-                if (state.isValid()) {
-                    val record = ActivityRecord(
-                        id = IdGenerator.generateId(),
-                        activityType = state.activityType,
-                        field = state.field,
-                        startTime = state.startTime!!,
-                        endTime = state.endTime!!,
-                        observations = state.observations,
-                        syncedWithFirebase = false,
-                        createdAt = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
-                    )
-                    activityRepository.insertActivityRecord(record)
-                    resetForm()
+                val record = ActivityRecord(
+                    id = IdGenerator.generateId(),
+                    activityType = state.activityType,
+                    field = state.field,
+                    startTime = state.startTime!!,
+                    endTime = state.endTime!!,
+                    observations = state.observations,
+                    syncedWithFirebase = false,
+                    createdAt = kotlin.time.Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                )
 
+                activityRepository.insertActivityRecord(record)
+                resetForm()
+
+                viewModelScope.launch {
                     if (syncState.value.isOnline) {
                         syncManager.performFullSync()
                     }
@@ -117,7 +124,7 @@ class ActivityViewModel(
         syncManager.retrySync()
     }
 
-    private fun resetForm() {
+    fun resetForm() {
         _currentActivity.value = ActivityFormState()
     }
 
