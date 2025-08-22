@@ -5,10 +5,10 @@ import com.guicarneirodev.agrotask.domain.model.HourlyForecast
 import com.guicarneirodev.agrotask.domain.model.Weather
 import com.guicarneirodev.agrotask.domain.model.WeatherCondition
 import com.guicarneirodev.agrotask.domain.model.getDescription
-import kotlinx.datetime.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 object WeatherMapper {
 
@@ -35,9 +35,7 @@ object WeatherMapper {
             }
         }
 
-        val currentHour = kotlin.time.Clock.System.now()
-            .toLocalDateTime(systemTimeZone).hour
-        val isCurrentlyDay = currentHour in 6..17
+        val isCurrentlyDay = response.current.isDay == 1
 
         val condition = mapConditionCode(response.current.condition.code, isCurrentlyDay)
 

@@ -157,7 +157,7 @@ class SyncManager(
                     throw Exception("Conexão perdida")
                 }
 
-            } catch (e: TimeoutCancellationException) {
+            } catch (_: TimeoutCancellationException) {
                 _syncState.update { it.copy(
                     isSyncing = false,
                     syncProgress = 0f,
@@ -172,7 +172,7 @@ class SyncManager(
                     _syncEvents.emit(SyncEvent.SyncFailed("Tempo esgotado"))
                 }
 
-            } catch (e: CancellationException) {
+            } catch (_: CancellationException) {
                 _syncState.update { it.copy(
                     isSyncing = false,
                     syncProgress = 0f
@@ -208,14 +208,6 @@ class SyncManager(
     fun retrySync() {
         _syncState.update { it.copy(lastSyncError = null) }
         performFullSync()
-    }
-
-    fun cancelSync() {
-        syncJob?.cancel()
-        _syncState.update { it.copy(
-            isSyncing = false,
-            syncProgress = 0f
-        ) }
     }
 
     fun onCleared() {

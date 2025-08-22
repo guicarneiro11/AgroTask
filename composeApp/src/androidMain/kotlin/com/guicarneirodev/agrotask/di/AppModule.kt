@@ -22,7 +22,7 @@ import com.guicarneirodev.agrotask.presentation.viewmodel.TaskViewModel
 import com.guicarneirodev.agrotask.presentation.viewmodel.WeatherViewModel
 import org.koin.android.ext.koin.androidContext
 import org.koin.androidx.viewmodel.dsl.viewModel
-import org.koin.dsl.module
+import org.koin.dsl.*
 
 val appModule = module {
 

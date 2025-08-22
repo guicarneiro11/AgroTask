@@ -13,5 +13,6 @@ data class WeatherCacheEntity(
     val description: String,
     val iconUrl: String,
     val hourlyForecastJson: String,
-    val lastUpdated: Long
+    val lastUpdated: Long,
+    val isDay: Boolean = true
 )

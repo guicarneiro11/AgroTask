@@ -71,7 +71,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
@@ -79,8 +78,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import com.guicarneirodev.agrotask.domain.model.ActivityRecord
-import com.guicarneirodev.agrotask.presentation.components.ConnectionStatusChip
 import com.guicarneirodev.agrotask.presentation.components.FloatingSyncButton
+import com.guicarneirodev.agrotask.presentation.components.StandardHeader
 import com.guicarneirodev.agrotask.presentation.components.SyncStatusBanner
 import com.guicarneirodev.agrotask.presentation.theme.Amber60
 import com.guicarneirodev.agrotask.presentation.theme.Green50
@@ -575,47 +574,11 @@ fun TimePickerCard(
 
 @Composable
 fun ActivityHeader(syncState: com.guicarneirodev.agrotask.domain.sync.SyncState) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Grey20,
-        shadowElevation = 4.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Grey20, Grey30.copy(alpha = 0.5f))
-                    )
-                )
-                .padding(20.dp)
-        ) {
-            Column {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Top
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            "Registro de Atividades",
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Green60
-                        )
-                        Text(
-                            "Documente o trabalho realizado no campo",
-                            fontSize = 14.sp,
-                            color = Grey80
-                        )
-                    }
-                    ConnectionStatusChip(
-                        isOnline = syncState.isOnline
-                    )
-                }
-            }
-        }
-    }
+    StandardHeader(
+        title = "Registro de Atividades",
+        subtitle = "Documente o trabalho realizado no campo",
+        isOnline = syncState.isOnline
+    )
 }
 
 @Composable

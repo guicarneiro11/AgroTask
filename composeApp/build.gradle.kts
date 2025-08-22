@@ -87,6 +87,8 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.turbine)
         }
     }
 }
@@ -128,5 +130,5 @@ android {
 
 dependencies {
     debugImplementation(compose.uiTooling)
-    add("ksp", libs.room.compiler)
+    add("kspAndroid", libs.room.compiler)
 }

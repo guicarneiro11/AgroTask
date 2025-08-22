@@ -44,12 +44,8 @@ class WeatherRepositoryImpl(
 
             weather
         } catch (e: Exception) {
-            val cachedWeather = weatherCacheDao.getWeatherCache()
-            if (cachedWeather != null) {
-                cachedWeather.toDomain()
-            } else {
-                throw Exception("Não foi possível obter dados do clima. ${e.message}")
-            }
+            weatherCacheDao.getWeatherCache()?.toDomain()
+                ?: throw Exception("Não foi possível obter dados do clima. ${e.message}")
         }
     }
 

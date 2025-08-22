@@ -28,7 +28,7 @@ class ActivityViewModel(
     private val _isLoading = MutableStateFlow(false)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
-    private val _currentActivity = MutableStateFlow<ActivityFormState>(ActivityFormState())
+    private val _currentActivity = MutableStateFlow(ActivityFormState())
     val currentActivity: StateFlow<ActivityFormState> = _currentActivity.asStateFlow()
 
     val syncState: StateFlow<SyncState> = syncManager.syncState

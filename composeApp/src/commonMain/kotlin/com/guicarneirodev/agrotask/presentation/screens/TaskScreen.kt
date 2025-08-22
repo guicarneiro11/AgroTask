@@ -68,14 +68,13 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.guicarneirodev.agrotask.domain.model.Task
 import com.guicarneirodev.agrotask.domain.model.TaskStatus
 import com.guicarneirodev.agrotask.domain.sync.SyncState
-import com.guicarneirodev.agrotask.presentation.components.ConnectionStatusChip
 import com.guicarneirodev.agrotask.presentation.components.ExtendedFABMenu
+import com.guicarneirodev.agrotask.presentation.components.StandardHeader
 import com.guicarneirodev.agrotask.presentation.components.SyncStatusBanner
 import com.guicarneirodev.agrotask.presentation.components.SyncStatusIndicator
 import com.guicarneirodev.agrotask.presentation.theme.Amber60
@@ -83,7 +82,6 @@ import com.guicarneirodev.agrotask.presentation.theme.Blue40
 import com.guicarneirodev.agrotask.presentation.theme.Green40
 import com.guicarneirodev.agrotask.presentation.theme.Green50
 import com.guicarneirodev.agrotask.presentation.theme.Green60
-import com.guicarneirodev.agrotask.presentation.theme.Grey20
 import com.guicarneirodev.agrotask.presentation.theme.Grey30
 import com.guicarneirodev.agrotask.presentation.theme.Grey40
 import com.guicarneirodev.agrotask.presentation.theme.Grey80
@@ -265,58 +263,18 @@ fun TaskHeader(
     syncState: SyncState,
     onSyncClick: () -> Unit
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Grey20,
-        shadowElevation = 4.dp
-    ) {
-        Column {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 20.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        "Tarefas de Hoje",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Green60
-                    )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        modifier = Modifier.padding(top = 4.dp)
-                    ) {
-                        Text(
-                            "Gerencie suas atividades",
-                            fontSize = 14.sp,
-                            color = Grey80,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        ConnectionStatusChip(
-                            isOnline = syncState.isOnline
-                        )
-                    }
-                }
-
-                Box(
-                    modifier = Modifier.padding(start = 8.dp)
-                ) {
-                    SyncStatusIndicator(
-                        syncState = syncState,
-                        onRetryClick = onSyncClick,
-                        showText = true
-                    )
-                }
-            }
+    StandardHeader(
+        title = "Tarefas de Hoje",
+        subtitle = "Gerencie suas atividades",
+        isOnline = syncState.isOnline,
+        trailing = {
+            SyncStatusIndicator(
+                syncState = syncState,
+                onRetryClick = onSyncClick,
+                showText = true
+            )
         }
-    }
+    )
 }
 
 @OptIn(ExperimentalAnimationApi::class)

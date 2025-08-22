@@ -14,7 +14,7 @@ import java.net.InetSocketAddress
 import java.net.Socket
 
 class AndroidNetworkObserver(
-    private val context: Context
+    context: Context
 ) : NetworkObserver {
     private val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())

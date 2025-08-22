@@ -65,10 +65,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.guicarneirodev.agrotask.domain.model.HourlyForecast
 import com.guicarneirodev.agrotask.domain.model.Weather
+import com.guicarneirodev.agrotask.domain.model.WeatherCondition
 import com.guicarneirodev.agrotask.domain.model.getDescription
 import com.guicarneirodev.agrotask.domain.network.NetworkStatus
 import com.guicarneirodev.agrotask.domain.network.isConnected
-import com.guicarneirodev.agrotask.presentation.components.ConnectionStatusChip
+import com.guicarneirodev.agrotask.presentation.components.StandardHeader
 import com.guicarneirodev.agrotask.presentation.components.WeatherIcon
 import com.guicarneirodev.agrotask.presentation.theme.Amber60
 import com.guicarneirodev.agrotask.presentation.theme.Blue40
@@ -80,6 +81,7 @@ import com.guicarneirodev.agrotask.presentation.theme.Grey40
 import com.guicarneirodev.agrotask.presentation.theme.Grey80
 import com.guicarneirodev.agrotask.presentation.theme.Red40
 import com.guicarneirodev.agrotask.presentation.viewmodel.WeatherViewModel
+import kotlinx.datetime.LocalDateTime
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.number
 import kotlinx.datetime.toLocalDateTime
@@ -148,7 +150,7 @@ fun NetworkStatusBanner(
         colors = CardDefaults.cardColors(
             containerColor = Amber60.copy(alpha = 0.15f)
         ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, Amber60.copy(alpha = 0.3f))
+        border = BorderStroke(1.dp, Amber60.copy(alpha = 0.3f))
     ) {
         Row(
             modifier = Modifier
@@ -183,13 +185,16 @@ fun WeatherContent(
 ) {
     var selectedForecast by remember { mutableStateOf<HourlyForecast?>(null) }
 
+    val normalizedData = remember(weather) {
+        WeatherDataHelper.weatherData(weather)
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
     ) {
         WeatherHeader(
-            weather = weather,
             networkStatus = networkStatus,
             onRefresh = onRefresh,
             isRefreshing = isRefreshing
@@ -200,7 +205,14 @@ fun WeatherContent(
             modifier = Modifier.fillMaxWidth()
         ) { forecast ->
             if (forecast == null) {
-                CurrentWeatherCard(weather = weather)
+                CurrentWeatherCard(
+                    temperature = normalizedData.current.temperature,
+                    humidity = normalizedData.current.humidity,
+                    condition = normalizedData.current.condition,
+                    description = normalizedData.current.condition.getDescription(),
+                    isFromCache = normalizedData.isFromCache,
+                    lastUpdated = normalizedData.lastUpdated
+                )
             } else {
                 SelectedForecastCard(
                     forecast = forecast,
@@ -209,9 +221,9 @@ fun WeatherContent(
             }
         }
 
-        if (weather.hourlyForecast.isNotEmpty()) {
+        if (normalizedData.hourlyForecasts.isNotEmpty()) {
             HourlyForecastSection(
-                forecasts = weather.hourlyForecast,
+                forecasts = normalizedData.hourlyForecasts,
                 selectedForecast = selectedForecast,
                 onForecastClick = { forecast ->
                     selectedForecast = if (selectedForecast == forecast) null else forecast
@@ -225,78 +237,50 @@ fun WeatherContent(
 
 @Composable
 fun WeatherHeader(
-    weather: Weather,
     networkStatus: NetworkStatus,
     onRefresh: () -> Unit,
     isRefreshing: Boolean
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = Grey20,
-        shadowElevation = 4.dp
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(20.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
+    StandardHeader(
+        title = "Condições do Tempo",
+        subtitle = "Previsão local",
+        isOnline = networkStatus.isConnected(),
+        trailing = {
+            IconButton(
+                onClick = onRefresh,
+                enabled = !isRefreshing && networkStatus.isConnected()
             ) {
-                Column {
-                    Text(
-                        "Condições do Tempo",
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Green60
-                    )
-                    Text(
-                        "Previsão local",
-                        fontSize = 14.sp,
-                        color = Grey80
-                    )
-                }
-
-                Column(
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    IconButton(
-                        onClick = onRefresh,
-                        enabled = !isRefreshing && networkStatus.isConnected()
-                    ) {
-                        val rotation by animateFloatAsState(
-                            targetValue = if (isRefreshing) 360f else 0f,
-                            animationSpec = if (isRefreshing) {
-                                infiniteRepeatable(
-                                    animation = tween(1000, easing = LinearEasing),
-                                    repeatMode = RepeatMode.Restart
-                                )
-                            } else {
-                                tween(0)
-                            }
+                val rotation by animateFloatAsState(
+                    targetValue = if (isRefreshing) 360f else 0f,
+                    animationSpec = if (isRefreshing) {
+                        infiniteRepeatable(
+                            animation = tween(1000, easing = LinearEasing),
+                            repeatMode = RepeatMode.Restart
                         )
-                        Icon(
-                            Icons.Default.Refresh,
-                            contentDescription = "Atualizar",
-                            tint = if (networkStatus.isConnected()) Green60 else Grey40,
-                            modifier = Modifier.rotate(rotation)
-                        )
+                    } else {
+                        tween(0)
                     }
-
-                    ConnectionStatusChip(
-                        isOnline = networkStatus.isConnected()
-                    )
-                }
+                )
+                Icon(
+                    Icons.Default.Refresh,
+                    contentDescription = "Atualizar",
+                    tint = if (networkStatus.isConnected()) Green60 else Grey40,
+                    modifier = Modifier.rotate(rotation)
+                )
             }
         }
-    }
+    )
 }
 
 @Composable
-fun CurrentWeatherCard(weather: Weather) {
+fun CurrentWeatherCard(
+    temperature: Double,
+    humidity: Int,
+    condition: WeatherCondition,
+    description: String,
+    isFromCache: Boolean,
+    lastUpdated: LocalDateTime
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -317,7 +301,7 @@ fun CurrentWeatherCard(weather: Weather) {
                 verticalArrangement = Arrangement.Center
             ) {
                 WeatherIcon(
-                    condition = weather.condition,
+                    condition = condition,
                     size = 80.dp
                 )
 
@@ -328,7 +312,7 @@ fun CurrentWeatherCard(weather: Weather) {
                     horizontalArrangement = Arrangement.Center
                 ) {
                     Text(
-                        "${weather.temperature.toInt()}",
+                        "${temperature.toInt()}",
                         fontSize = 56.sp,
                         fontWeight = FontWeight.Light,
                         color = Color.White
@@ -343,7 +327,7 @@ fun CurrentWeatherCard(weather: Weather) {
                 }
 
                 Text(
-                    weather.description,
+                    description,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                     color = Grey80,
@@ -370,7 +354,7 @@ fun CurrentWeatherCard(weather: Weather) {
                             modifier = Modifier.size(20.dp)
                         )
                         Text(
-                            "Umidade: ${weather.humidity}%",
+                            "Umidade: $humidity%",
                             fontSize = 14.sp,
                             color = Color.White
                         )
@@ -378,9 +362,9 @@ fun CurrentWeatherCard(weather: Weather) {
                 }
             }
 
-            if (weather.isFromCache) {
+            if (isFromCache) {
                 Text(
-                    "Última atualização: ${formatLastUpdate(weather.lastUpdated)}",
+                    "Última atualização: ${formatLastUpdate(lastUpdated)}",
                     fontSize = 11.sp,
                     color = Grey80.copy(alpha = 0.7f),
                     modifier = Modifier
@@ -520,6 +504,7 @@ fun SelectedForecastCard(
     }
 }
 
+
 @OptIn(ExperimentalTime::class)
 @Composable
 fun HourlyForecastSection(
@@ -530,14 +515,14 @@ fun HourlyForecastSection(
     val currentTime = kotlin.time.Clock.System.now()
         .toLocalDateTime(TimeZone.currentSystemDefault())
     val currentHour = currentTime.hour
-    val currentDay = currentTime.dayOfMonth
+    val currentDay = currentTime.day
 
     val nextHours = mutableListOf<HourlyForecast>()
     var foundStart = false
 
     for (forecast in forecasts.sortedBy { it.time }) {
         val forecastHour = forecast.time.hour
-        val forecastDay = forecast.time.dayOfMonth
+        val forecastDay = forecast.time.day
 
         if (!foundStart) {
             if (forecastDay == currentDay && forecastHour >= currentHour) {
@@ -591,7 +576,7 @@ fun HourlyForecastSection(
         ) {
             items(nextHours) { forecast ->
                 val isCurrentHour = forecast.time.hour == currentHour &&
-                        forecast.time.dayOfMonth == currentDay
+                        forecast.time.day == currentDay
                 val isSelected = selectedForecast == forecast
 
                 HourlyForecastCardClickable(
@@ -767,6 +752,6 @@ fun ErrorWeatherState(
     }
 }
 
-fun formatLastUpdate(dateTime: kotlinx.datetime.LocalDateTime): String {
+fun formatLastUpdate(dateTime: LocalDateTime): String {
     return "${dateTime.hour.toString().padStart(2, '0')}:${dateTime.minute.toString().padStart(2, '0')} - ${dateTime.day}/${dateTime.month.number}"
 }

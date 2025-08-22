@@ -17,7 +17,7 @@ import com.guicarneirodev.agrotask.data.local.entity.WeatherCacheEntity
         ActivityRecordEntity::class,
         WeatherCacheEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 @TypeConverters(Converters::class)
