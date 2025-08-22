@@ -15,20 +15,31 @@ class WeatherApiService(
             json(Json {
                 ignoreUnknownKeys = true
                 isLenient = true
+                coerceInputValues = true
             })
         }
         install(Logging) {
-            level = LogLevel.INFO
+            level = LogLevel.ALL
+            logger = object : Logger {
+                override fun log(message: String) {
+                    println("HTTP Client: $message")
+                }
+            }
         }
     }
 ) {
     suspend fun getCurrentWeather(lat: Double, lon: Double, apiKey: String): WeatherApiResponse {
-        return client.get("https://api.weatherapi.com/v1/forecast.json") {
+        val url = "https://api.weatherapi.com/v1/forecast.json"
+
+        val response = client.get(url) {
             parameter("key", apiKey)
             parameter("q", "$lat,$lon")
-            parameter("hours", 24)
+            parameter("days", 2)
             parameter("aqi", "no")
             parameter("alerts", "no")
-        }.body()
+            parameter("lang", "pt")
+        }.body<WeatherApiResponse>()
+
+        return response
     }
 }
