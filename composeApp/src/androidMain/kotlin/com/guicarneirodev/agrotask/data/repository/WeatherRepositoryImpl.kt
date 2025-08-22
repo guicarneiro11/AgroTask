@@ -29,16 +29,27 @@ class WeatherRepositoryImpl(
 
         return try {
             val location = locationService.getCurrentLocation()
-            val lat = location?.latitude ?: -22.296933
-            val lon = location?.longitude ?: -48.553894
+                ?: throw Exception("Localização não disponível. Verifique as permissões de localização.")
 
-            val response = weatherApiService.getCurrentWeather(lat, lon, apiKey)
+            val response = weatherApiService.getCurrentWeather(
+                lat = location.latitude,
+                lon = location.longitude,
+                apiKey = apiKey
+            )
+
             val weather = WeatherMapper.mapToDomain(response)
+
+            weatherCacheDao.clearCache()
             weatherCacheDao.insertWeatherCache(weather.toEntity())
+
             weather
         } catch (e: Exception) {
             val cachedWeather = weatherCacheDao.getWeatherCache()
-            cachedWeather?.toDomain() ?: throw e
+            if (cachedWeather != null) {
+                cachedWeather.toDomain()
+            } else {
+                throw Exception("Não foi possível obter dados do clima. ${e.message}")
+            }
         }
     }
 
@@ -55,7 +66,7 @@ class WeatherRepositoryImpl(
     @OptIn(ExperimentalTime::class)
     private fun isCacheValid(lastUpdated: Long): Boolean {
         val now = kotlin.time.Clock.System.now().toEpochMilliseconds()
-        val thirtyMinutesInMillis = 30 * 60 * 1000
-        return (now - lastUpdated) < thirtyMinutesInMillis
+        val fifteenMinutesInMillis = 15 * 60 * 1000
+        return (now - lastUpdated) < fifteenMinutesInMillis
     }
 }
