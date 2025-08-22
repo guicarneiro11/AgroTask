@@ -41,7 +41,7 @@ class WeatherViewModel(
 
                 when (status) {
                     NetworkStatus.Available -> {
-                        if (_weather.value?.isFromCache == true) {
+                        if (_weather.value?.isFromCache == true || _weather.value == null) {
                             loadWeather(forceRefresh = true)
                         }
                     }
@@ -74,20 +74,28 @@ class WeatherViewModel(
             val isOnline = _networkStatus.value == NetworkStatus.Available
 
             try {
-                val weatherData = if (isOnline || forceRefresh) {
-                    weatherRepository.getCurrentWeather(forceRefresh)
-                } else {
-                    weatherRepository.getCurrentWeather(false)
-                }
+                val weatherData = weatherRepository.getCurrentWeather(forceRefresh || isOnline)
                 _weather.value = weatherData.copy(
                     isFromCache = !isOnline || weatherData.isFromCache
                 )
+                _error.value = null
             } catch (e: Exception) {
-                if (!isOnline) {
-                    _error.value = "Sem conexão. Mostrando última atualização disponível."
-                } else {
-                    _error.value = "Erro ao carregar dados do clima."
+                val errorMessage = when {
+                    e.message?.contains("Localização não disponível") == true -> {
+                        "Permissão de localização necessária para obter dados do clima"
+                    }
+                    !isOnline -> {
+                        if (_weather.value != null) {
+                            null
+                        } else {
+                            "Sem conexão e sem dados salvos"
+                        }
+                    }
+                    else -> {
+                        "Erro ao carregar dados do clima: ${e.message}"
+                    }
                 }
+                _error.value = errorMessage
                 e.printStackTrace()
             } finally {
                 _isLoading.value = false
@@ -99,7 +107,9 @@ class WeatherViewModel(
         if (_networkStatus.value == NetworkStatus.Available) {
             loadWeather(forceRefresh = true)
         } else {
-            _error.value = "Sem conexão para atualizar"
+            viewModelScope.launch {
+                _error.value = "Sem conexão para atualizar"
+            }
         }
     }
 }
