@@ -117,11 +117,11 @@ fun LongPressButtonActivity(
                     onPress = {
                         isPressed = true
                         job = coroutineScope.launch {
-                            delay(2000)
+                            delay(300)
                             if (isPressed) {
                                 while (isPressed) {
                                     onLongPress()
-                                    delay(150)
+                                    delay(100)
                                 }
                             }
                         }
