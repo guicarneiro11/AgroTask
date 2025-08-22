@@ -8,6 +8,10 @@ import com.guicarneirodev.agrotask.domain.model.Task
 import com.guicarneirodev.agrotask.domain.model.TaskStatus
 import kotlinx.coroutines.tasks.await
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Clock
+import kotlin.time.ExperimentalTime
 
 class FirebaseService() {
 
@@ -168,9 +172,10 @@ class FirebaseService() {
         }
     }
 
+    @OptIn(ExperimentalTime::class)
     private fun parseLocalDateTime(dateTimeString: String?): LocalDateTime {
         if (dateTimeString == null) {
-            return LocalDateTime(2024, 1, 1, 0, 0)
+            return Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
         }
 
         return try {
